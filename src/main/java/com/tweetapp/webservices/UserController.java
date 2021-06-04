@@ -86,10 +86,16 @@ public class UserController {
 	public ResponseEntity<?> refresh(@RequestBody JWTResponse jwtResponse, HttpServletRequest request)
 			throws AuthenticationCredentialsNotFoundException {
 		JWTResponse response = null;
+		String token = "";
 		try {
 			final String userName = jwtUtil.getUsernameFromToken(jwtResponse.getRefreshToken(), request);
 			final UserDetails userDetails = userService.loadUserByUsername(userName);
-			final String accessToken = jwtUtil.generateToken(userDetails, "Access", request);
+			String isRefreshToken = request.getHeader("isRefreshToken");
+			String requestURL = request.getRequestURL().toString();
+			if (isRefreshToken != null && isRefreshToken.equals("true") && requestURL.contains("refreshToken")) {
+				token = jwtUtil.generateToken(userDetails, "Access", request);
+			}
+			final String accessToken = token;
 			response = new JWTResponse("Access Token Re-generated", accessToken, jwtResponse.getRefreshToken());
 		} catch (ExpiredJwtException ex) {
 			throw new JwtTokenException("Refresh Token has Expired");
@@ -155,6 +161,8 @@ public class UserController {
 	public ResponseEntity<CustomResponse> resetPassword(@RequestBody User user) {
 		LOGGER.info("Entering resetPassword() API :::: {}");
 		CustomResponse response;
+		String encodePassword = passEncoder.encode(user.getUserPassword());
+		user.setUserPassword(encodePassword);
 		String result = userService.resetPassword(user);
 		if ("Success".equalsIgnoreCase(result)) {
 			response = new CustomResponse(HttpStatus.OK, TweetConstant.RESET_SUCCESSFUL, LocalDateTime.now());
